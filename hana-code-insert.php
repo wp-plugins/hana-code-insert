@@ -3,7 +3,7 @@
 Plugin Name: Hana Code Insert
 Plugin URI: http://www.neox.net/w/2008/06/12/hana-code-insert-wordpress-plugin
 Description: Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
-Version: 1.0
+Version: 1.5
 Author: HanaDaddy
 Author URI: http://www.neox.net
 */
@@ -150,7 +150,12 @@ class hana_code_insert
     <p>
     After the creation, you can find that the newly added entry is shown in the bottom. Copy the usage code example and insert it in your article. That's all.
     </p>
- 	
+   
+ 	<form action="" method="post">
+	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name' />
+	If something goes wrong and you want to start fresh, click this button. It will erase all the entires. <input name="submit" value="Remove All" type="submit" />
+	</form>
+	
 	<h3>New Entry</h3>
 	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name'>
@@ -189,7 +194,7 @@ class hana_code_insert
 
 	 	print "<tr><input type='hidden' name='update_name_$i' value='" .$cur['name']."'>
 			<td valign='top' width='150' ><input type='checkbox' name='delete[]' value='$i'> " .$cur['name']."</td>
-			<td><textarea rows='".$this->edit_row."' cols='".$this->edit_col."' name='update_content_$i' ". $this->edit_wrap_str .">".$cur['content']."</textarea><br />";
+			<td><textarea rows='".$this->edit_row."' cols='".$this->edit_col."' name='update_content_$i' ". $this->edit_wrap_str .">".htmlspecialchars($cur['content'])."</textarea><br />";
 		if ($this->eval_php) 
 			print "	
 				<input type='checkbox' name='update_php_$i' value='1' $php_checked > Evaluate as php code.<br />";
@@ -316,6 +321,13 @@ class hana_code_insert
 		}
 	}
 	
+	function hana_code_options_delete_all (){
+		
+		//$this->load_user_data();
+		$this->user_data=null;
+		update_option('hanacode_options',$this->user_data);
+		$this->update_result="All items are deleted";
+	}
 	function hana_code_options_delete (){
 		$this->load_user_data();
 		$narr=array();
@@ -464,6 +476,10 @@ if ($_POST['form_name'] == $hana_code->tag_name) {
 		$hana_code->hana_code_options_new();
 	}
 
+	if ( substr($_POST['submit'],0,10) == 'Remove All'){
+		//print "haha-deleting";
+		$hana_code->hana_code_options_delete_all();	
+	}else
 	if ( substr($_POST['submit'],0,6) == 'Delete'){
 		//print "haha-deleting";
 		$hana_code->hana_code_options_delete();	
