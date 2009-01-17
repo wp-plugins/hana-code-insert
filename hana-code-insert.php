@@ -3,7 +3,7 @@
 Plugin Name: Hana Code Insert
 Plugin URI: http://www.neox.net/w/2008/06/12/hana-code-insert-wordpress-plugin
 Description: Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
-Version: 1.5
+Version: 1.6
 Author: HanaDaddy
 Author URI: http://www.neox.net
 */
