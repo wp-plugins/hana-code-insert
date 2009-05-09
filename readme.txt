@@ -3,7 +3,7 @@ Contributors: HanaDaddy
 Donate link: http://www.neox.net/
 Tags: AdSense,Paypal, PHP, Insert, adding code,embed code
 Requires at least: 2.0
-Tested up to: 2.7
+Tested up to: 2.7.1
 Stable tag: 1.6
 
 Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
