@@ -3,7 +3,7 @@
 Plugin Name: Hana Code Insert
 Plugin URI: http://www.neox.net/w/2008/06/12/hana-code-insert-wordpress-plugin
 Description: Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
-Version: 1.6
+Version: 2.0
 Author: HanaDaddy
 Author URI: http://www.neox.net
 */
@@ -14,7 +14,7 @@ class hana_code_insert
 	//---------------------------------------------
 	// variable that can be modified
 	//---------------------------------------------
-	var $eval_php=false;	//true : Activate the php evaluation, false: disable the php evaluation
+	//var $eval_php=false;	//true : Activate the php evaluation, false: disable the php evaluation
 	var $edit_col=80; 	//Textarea columns
 	var $edit_row=5;  	//Textarea rows
 	var $edit_wrap='on'; //off: wrap='off' , on : wrap='soft'
@@ -27,7 +27,7 @@ class hana_code_insert
 	var $plugin_folder="hana-code-insert";
 	var $plugin_url;
 	
-	var $admin_setting_menu='Hana Code Insert';
+	var $admin_setting_menu='&#8226;Hana Code Insert';
 	var $admin_setting_title='Hana Code Insert Default Configuration';
 	var $update_result='';
 	var $error_result='';
@@ -35,7 +35,7 @@ class hana_code_insert
 	
 	var $entity_target = array("&#8217;","&#8220;","&#8221;","&#038;","\'","&#8242;", "&#8216;");
 	var $entity_replace= array("'",'"','"',"&","'","'","'");
-	
+	var $settings;
   
 	
 					
@@ -48,6 +48,13 @@ class hana_code_insert
 		else
 		if ($this->edit_wrap=='on')
 			$this->edit_wrap_str="wrap='on'";
+		
+		$this->settings = get_option('hanacode_settings');
+		if (! $this->settings){
+			$this->settings=array('edit_col'=>80,'edit_row'=>5,'edit_wrap'=>'on');
+		}
+		
+		$this->bind_hooks();
 	}
 	
 	function load_user_data(){
@@ -61,8 +68,10 @@ class hana_code_insert
 
 	function bind_hooks() {
 		// third arg should be large value to execute in the later in the chain
-		add_filter('the_content', array(&$this,'hana_code_return') , 100);
+		add_filter('the_content', array(&$this,'hana_code_return') , 1000);
 		add_action('admin_menu' , array(&$this,'hana_code_admin_menu') );
+		// init process for button control
+		add_action('init', array(&$this,'hana_code_addbuttons'));
 	}
 	
 	function hana_code_return($content) {
@@ -108,7 +117,7 @@ class hana_code_insert
 		
 		$output='';
 		if ($found){
-			if ($found['php'] == '1' && $this->eval_php ){
+			if ($found['php'] == '1' && $this->settings['enable_php'] =='yes' ){
 				// need to insert that \n because of the possible use comment //
 				$phpcode="ob_start(); ".$found['content'] . "\n \$hana_final_output = ob_get_contents(); ob_end_clean(); "; 
 				eval($phpcode); //can be dangerous
@@ -133,6 +142,32 @@ class hana_code_insert
     
 	function hana_code_options_page() {
 		$this->load_user_data();
+
+		
+	
+		if ($_POST['form_name'] == $this->tag_name) {
+		
+			// admin option page update
+			if ( isset($_POST['new_name']) ) {
+				$this->hana_code_options_new();
+			}
+		
+			if ( substr($_POST['submit'],0,10) == 'Remove All'){
+				//print "haha-deleting";
+				$this->hana_code_options_delete_all();	
+			}else
+			if ( substr($_POST['submit'],0,6) == 'Delete'){
+				//print "haha-deleting";
+				$this->hana_code_options_delete();	
+			}else
+			if ( substr($_POST['submit'],0,6) == 'Update'){
+				$this->hana_code_options_update();
+			}else
+			if ( $_POST['submit'] == 'Save Settings'){
+				$this->hana_code_save_settings();
+				
+			}
+		}		
 		
 		//global  $_POST;
 		if ( $this->update_result != '' ) 
@@ -153,9 +188,20 @@ class hana_code_insert
    
  	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name' />
-	If something goes wrong and you want to start fresh, click this button. It will erase all the entires. <input name="submit" value="Remove All" type="submit" />
-	</form>
+	If something goes wrong and you want to start fresh, click this button. It will erase all the entries. <span class="submit"><input name="submit" value="Remove All" type="submit" /></span>
+
+	<hr size='1'/>
+	<h3>Settings</h3>
+	<ul style='list-style-type:circle;margin-left:30px;'>
+	<li>Editor textarea:  Columns <input type='text' name='edit_col' size='2' value='<?php echo $this->settings['edit_col']?>'> Rows <input type='text' name='edit_row' value='<?php echo $this->settings['edit_row'];?>' size='2'></li>
+	<li><input type='checkbox' name='enable_php' <?php  if ($this->settings['enable_php'] == 'yes') echo 'checked'; ?> value='yes' /> Enable PHP Execution (If you enable this option, the code entry 
+can be evaluated as php codes. The output string will be embeded in the middle of your WP article. Don't need &lt;?php and ?&gt;)</li>
+	</ul>
 	
+	<p class="submit"><input type='submit' name='submit' value='Save Settings'></p>
+	
+	</form>
+	<hr size='1'/>
 	<h3>New Entry</h3>
 	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name'>
@@ -165,8 +211,8 @@ class hana_code_insert
 			<td valign="top" width='150'>New Entry Name:<br /><input type='text' name="new_name" value='<?php print $this->failed_entry['name']; ?>' size='15'>
 			</td>
 			<td>HTML code or Javascript or anything else you want to show in your article.<br />
-			<textarea rows="<?php echo ($this->edit_row + 2); ?>" cols="<?php echo $this->edit_col ?>" name="new_content" <?php echo $this->edit_wrap_str; ?>><?php print $this->failed_entry['content']; ?></textarea><br>
-				<?php if ($this->eval_php) : ?>
+			<textarea rows="<?php echo ( $this->settings['edit_row'] + 2); ?>" cols="<?php echo $this->settings['edit_col'] ?>" name="new_content" <?php echo $this->edit_wrap_str; ?>><?php print $this->failed_entry['content']; ?></textarea><br>
+				<?php if ($this->settings['enable_php'] == 'yes') : ?>
 					<input type='checkbox' name='new_php' value='1' <?php if ($this->failed_entry['php'] == '1') { print "checked"; } ?> > Evaluate as php code.
 				<?php endif ?>
 			</td>
@@ -175,7 +221,7 @@ class hana_code_insert
 	<p class="submit"><input name="submit" value="Create New Entry &raquo;" type="submit"></p>
 	</fieldset>
 	</form>
-	
+	<hr size='1'/>
 	<h3>Edit Existing Entries</h3>
 	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name'>
@@ -194,8 +240,8 @@ class hana_code_insert
 
 	 	print "<tr><input type='hidden' name='update_name_$i' value='" .$cur['name']."'>
 			<td valign='top' width='150' ><input type='checkbox' name='delete[]' value='$i'> " .$cur['name']."</td>
-			<td><textarea rows='".$this->edit_row."' cols='".$this->edit_col."' name='update_content_$i' ". $this->edit_wrap_str .">".htmlspecialchars($cur['content'])."</textarea><br />";
-		if ($this->eval_php) 
+			<td><textarea rows='". $this->settings['edit_row'] ."' cols='". $this->settings['edit_col'] ."' name='update_content_$i' ". $this->edit_wrap_str .">".htmlspecialchars($cur['content'])."</textarea><br />";
+		if ($this->settings['enable_php'] == 'yes') 
 			print "	
 				<input type='checkbox' name='update_php_$i' value='1' $php_checked > Evaluate as php code.<br />";
 		else
@@ -213,36 +259,8 @@ class hana_code_insert
 	<input type='submit' name='submit' value='Delete &raquo;'></p>
 	</fieldset>
 	</form>
-
-<a name="example" ></a>
-   <p>
-    <div><strong>Note:</strong>
-Also, you can use PHP codes. If you enable the 'Evaluate as php code.' option, the code entry 
-will be evaluated as php codes. The output string will be embeded in the middle of your WP article. 
-However, this option is disabled by default since it can be dangerous. If you want to enable the option, 
-you need to edit the <code><?php print __FILE__; ?></code> . 
-Then, change <code>var $eval_php=false;</code> to <code>var $eval_php=true;</code>.
-
-    
-    </div>
-    
-	<pre style="padding: 10px; border:1px dotted black">
-class hana_code_insert
-{
-	//---------------------------------------------
-	// variable that can be modified
-	//---------------------------------------------
-	var $eval_php=<span style='color:#f00'>false</span>;	//Change this value to <span style='color:#00f'>true</span> to activate PHP eval.
-	var $edit_col=80; 	//Textarea columns
-	var $edit_row=5;  	//Textarea rows
-	var $edit_wrap='on'; //off: wrap='off' , on : wrap='soft'
-	//---------------------------------------------
-	...
-</pre>
-
-
- </p>
-
+<hr size='1'/>
+ 
 
     <p>Thank you for using my plugin. - <a href='http://wwww.neox.net/'>HanaDaddy</a></p>
 <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
@@ -260,6 +278,9 @@ class hana_code_insert
 <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1"><br />
 </form>
 </div>
+
+
+<script type="text/javascript" src="http://neox.net/plugin_news.php?id=<?php echo urlencode($this->tag_name); ?>"></script>
 
 </div>
 
@@ -382,7 +403,7 @@ class hana_code_insert
 			for ($j=0; $j<$total; $j++){			
 				if ($this->user_data[$j]['name'] == $update_name){
 					$this->user_data[$j]['content']=$this->filter_input('content',$_POST["update_content_$i"]);	
-					if ($this->eval_php)
+					if ($this->settings['enable_php'] == 'yes')
 						$this->user_data[$j]['php']=$_POST["update_php_$i"];
 					$total_updated ++;
 				}
@@ -399,6 +420,24 @@ class hana_code_insert
 		}
 		$this->update_result="$total_updated $wording";
 				
+	}
+	
+	function hana_code_save_settings(){
+		if ($_POST['enable_php'] == 'yes') 
+			$this->settings['enable_php']='yes';
+		else
+			$this->settings['enable_php']='no';
+
+		$col=intval($_POST['edit_col']);
+		if ($col > 200) $col=200;
+		$this->settings['edit_col'] = $col; 
+
+		$row=intval($_POST['edit_row']);
+		if ($row > 50) $row=50;
+		$this->settings['edit_row'] =$row; 
+		
+		update_option('hanacode_settings',$this->settings);
+		$this->update_result="Saved Settings.";
 	}
     	
 
@@ -461,32 +500,127 @@ class hana_code_insert
 		return $output;
 	}
     
+	//Editor plugin-----------------
+	
+
+//test-----------------
+	
+	function hana_code_addbuttons() {
+	   	// Don't bother doing this stuff if the current user lacks permissions
+	   	if ( ! current_user_can('edit_posts') && ! current_user_can('edit_pages') )
+	    	return;
+	    //rich_editing
+	    add_filter("mce_external_plugins", array(&$this,'add_tinymce_plugin'));
+	    add_filter('mce_buttons', array(&$this,'register_button'));
+	     
+	    //for html editing 
+	    add_action('edit_form_advanced', array(&$this,'print_javascript'));
+		add_action('edit_page_form',array(&$this,'print_javascript'));
+	    //add_action('admin_footer','print_javascript');
+	}
+	 
+	function register_button($buttons) {
+	   	//array_push($buttons, "separator", "hcinsert");
+	   	array_push($buttons,  "hcinsert");
+	   	return $buttons;
+	}
+	 
+	// Load the TinyMCE plugin : editor_plugin.js (wp2.5)
+	function add_tinymce_plugin($plugin_array) {
+	   	$plugin_array['hanacodeinsert'] = $this->plugin_url . '/tinymce3/editor_plugin.js';
+	   	return $plugin_array;
+	}
+
+	function print_javascript () {
+	 
+?>
+   <!--  for popup dialog -->
+   <link href="<?php echo $this->plugin_url . '/jqModal/jqModal.css'; ?>" type="text/css" rel="stylesheet" />
+   <script type="text/javascript" src="<?php echo $this->plugin_url . '/jqModal/jqModal.js';?>" ></script>
+
+   <script type="text/javascript">
+   	jQuery(document).ready(function(){
+		// Add the buttons to the HTML view
+		jQuery("#ed_toolbar").append('<input type=\"button\" class=\"ed_button\" onclick=\"jQuery(\'#dialog\').jqmShow();\" title=\"Hana Code Insert\" value=\"Hana Code\" />');
+   	});
+
+	jQuery(document).ready(function () {
+		jQuery('#dialog').jqm();
+	});
+
+	function update_hanacodeinsert(){
+		var hci_select = document.getElementById("hci_select");
+		if (hci_select) {
+			key=hci_select.options[hci_select.selectedIndex].value;
+			if (key.length > 0 ){
+				text = "[hana-code-insert name='"+key+"' /]";				
+				if ( typeof tinyMCE != 'undefined' && ( ed = tinyMCE.activeEditor ) && !ed.isHidden() ) {
+					ed.focus();
+					if (tinymce.isIE)
+						ed.selection.moveToBookmark(tinymce.EditorManager.activeEditor.windowManager.bookmark);
+
+					ed.execCommand('mceInsertContent', false, text);
+				} else
+					edInsertContent(edCanvas, text);
+				 
+			}
+		}
+		
+		jQuery('#dialog').jqmHide();
+	}
+
+	
+   	</script>
+
+	<div id="dialog" class='jqmWindow'  >
+	<div style='width:100%;text-align:center'>
+	<h3>Hana Code Insert</h3>
+	<a href='options-general.php?page=hana-code-insert/hana-code-insert.php' >Settings page</a><br />
+	<?php 
+	if (!$this->user_data) $this->load_user_data();
+	$total=count($this->user_data);
+	
+	if ($total > 0):
+	?>
+	
+	
+	<select  id='hci_select' style='font-size:1.2em;'>
+	<?php 
+	
+	
+			for ($i=0;$i<$total ; $i++){
+				$cur = $this->user_data[$i];	
+				echo '<option value="'.$cur['name'].'">'.$cur['name'].'</option>';			
+			}
+	?>
+	</select>
+	<br />
+		<input type='button' value='OK' onclick='update_hanacodeinsert()'; >
+	
+	<?php endif; ?>
+	
+	
+		<input type='button' value='Cancel' onclick="jQuery('#dialog').jqmHide();" >
+	
+	</div>
+	
+	</div>
+	  
+	
+	<?php   
+	  //end of print_javascript 
+	}
+
 
 }
 
+
+//initialize hana code insert object
 $hana_code = new hana_code_insert();
 
-$hana_code->bind_hooks();
+ 
 
 
 
-if ($_POST['form_name'] == $hana_code->tag_name) {
-	// admin option page update
-	if ( isset($_POST['new_name']) ) {
-		$hana_code->hana_code_options_new();
-	}
 
-	if ( substr($_POST['submit'],0,10) == 'Remove All'){
-		//print "haha-deleting";
-		$hana_code->hana_code_options_delete_all();	
-	}else
-	if ( substr($_POST['submit'],0,6) == 'Delete'){
-		//print "haha-deleting";
-		$hana_code->hana_code_options_delete();	
-	}else
-	if ( substr($_POST['submit'],0,6) == 'Update'){
-		$hana_code->hana_code_options_update();
-	}
-}
 
-?>
