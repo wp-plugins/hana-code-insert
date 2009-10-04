@@ -3,8 +3,8 @@ Contributors: HanaDaddy
 Donate link: http://www.neox.net/
 Tags: AdSense,Paypal, PHP, Insert, adding code,embed code,code
 Requires at least: 2.0
-Tested up to: 2.8.1
-Stable tag: 2.0
+Tested up to: 2.8.4
+Stable tag: 2.2
 
 Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
 
@@ -23,13 +23,25 @@ For example,  after you setup a code entry in the admin Settings with the name '
 `
 [hana-code-insert name='AdSense' /]
 `
- 
+
+Also from version 2.2 , you can use custom Shortcode prefix and post fix.  So if you define `[[` as prefix and `]]` as post fixe, below shortcode will also work. HTML comment tag also is a good idea to use as shortcode.
+
+`
+[[AdSense]]
+
+<!--AdSense-->
+`
+
 
 Thank you for using my plugin. -  [HanaDaddy](http://www.neox.net/)
 
-*v2.0 (7/20/2009) : PHP evaluation settings can be set within the option page. Editor Helper Dialog button is added for easier insert. If you are upgrading , you should enable the PHP execution option from the option page if you were using PHP eval function previously.
+Have Questions? [Hana Code Insert Plugin Forum](http://wpmarketing.org/forum/forum/wp-plugin-hana-code-insert)
 
-*v1.5 (1/16/2009) : added htmlspecialchars function to prevent error occurred when using form and textarea tags. Also added 'Remove All' Button to delete all entries if something goes wrong.
+*v2.2 (10/04/2009) : Some modification on PHP evaluation that you can use `<?php` and `?>` within the entry content for PHP evaluation. Also extra feature for custom short code is added. You can define your own custom short code prefix and post fix. So you don't have to use `[hana-code-insert]` shortcode any more. 
+
+*v2.0 (07/20/2009) : PHP evaluation settings can be set within the option page. Editor Helper Dialog button is added for easier insert. If you are upgrading , you should enable the PHP execution option from the option page if you were using PHP eval function previously.
+
+*v1.5 (01/16/2009) : added htmlspecialchars function to prevent error occurred when using form and textarea tags. Also added 'Remove All' Button to delete all entries if something goes wrong.
 
 
 == Installation ==

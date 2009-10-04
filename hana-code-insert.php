@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: Hana Code Insert
-Plugin URI: http://www.neox.net/w/2008/06/12/hana-code-insert-wordpress-plugin
+Plugin URI: http://wpmarketing.org/plugins/hana-code-insert/
 Description: Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
-Version: 2.0
+Version: 2.2
 Author: HanaDaddy
-Author URI: http://www.neox.net
+Author URI: http://neox.net
 */
 
  
@@ -36,7 +36,11 @@ class hana_code_insert
 	var $entity_target = array("&#8217;","&#8220;","&#8221;","&#038;","\'","&#8242;", "&#8216;");
 	var $entity_replace= array("'",'"','"',"&","'","'","'");
 	var $settings;
-  
+	
+	var $coderemove= array('\\','^');
+  	var $codesearch_arr =array('[','$','.','|','?','*','+','(',')','{','}');
+	var	$codereplace_arr=array('\[','\$','\.','\|','\?','\*','\+','\(','\)','\{','\}');
+	
 	
 					
 	function hana_code_insert() {
@@ -51,7 +55,7 @@ class hana_code_insert
 		
 		$this->settings = get_option('hanacode_settings');
 		if (! $this->settings){
-			$this->settings=array('edit_col'=>80,'edit_row'=>5,'edit_wrap'=>'on');
+			$this->settings=array('edit_col'=>80,'edit_row'=>5,'edit_wrap'=>'on','shortcode_start'=>'','shortcode_end'=>'');
 		}
 		
 		$this->bind_hooks();
@@ -65,18 +69,39 @@ class hana_code_insert
 				$this->user_data=array();
 		}
 	}
+	//used for html output
+	function get_shortcode_start_html($enc=1){
+		$ret=str_replace($this->codereplace_arr,$this->codesearch_arr,$this->settings['shortcode_start']);
+		if ($enc) { $ret=htmlentities($ret); }
+		return $ret;
+	}
 
+	function get_shortcode_end_html($enc=1){		
+		$ret= str_replace($this->codereplace_arr,$this->codesearch_arr,$this->settings['shortcode_end']);		
+		if ($enc) { $ret=htmlentities($ret); }
+		return $ret;
+	}
+			
 	function bind_hooks() {
 		// third arg should be large value to execute in the later in the chain
 		add_filter('the_content', array(&$this,'hana_code_return') , 1000);
 		add_action('admin_menu' , array(&$this,'hana_code_admin_menu') );
 		// init process for button control
 		add_action('init', array(&$this,'hana_code_addbuttons'));
+		add_action('admin_print_scripts',array(&$this,'admin_javascript'));
 	}
 	
 	function hana_code_return($content) {
-		return preg_replace_callback('|\['.$this->tag_name.'(.*?)/\]|ims', array(&$this,'hana_code_callback'), $content);
-		 
+		if ($this->settings['shortcode_start'] != ''){
+			$start=$this->settings['shortcode_start'];
+			$end=$this->settings['shortcode_end'];
+		    $reg='^'.$start.'(.*?)'.$end.'^ims';
+		    //echo "REG:".htmlentities($reg) . "<br />";
+			$content= preg_replace_callback($reg, array(&$this,'hana_code_callback_custom'), $content);			
+		}
+		//need to check on the original short code style always.
+		return preg_replace_callback('^\['.$this->tag_name.'(.*?)/\]^ims', array(&$this,'hana_code_callback'), $content);
+		
 	}
  
 	function hana_code_admin_menu() {
@@ -84,6 +109,40 @@ class hana_code_insert
 			add_options_page($this->admin_setting_title,$this->admin_setting_menu, 1, __FILE__,array(&$this,'hana_code_options_page'));
 
 		}
+	}
+
+	function hana_code_find($key){
+		 
+		$total=count($this->user_data);
+
+		$found=null;
+		for ($i=0;$i<$total ; $i++){
+			$cur = $this->user_data[$i];	
+			if ($cur['name'] == $key){
+					$found=$cur;
+					break;	
+			}
+		}
+
+		
+		$output='';
+		if ($found){
+			if ($found['php'] == '1' && $this->settings['enable_php'] =='yes' ){
+				// need to insert that \n because of the possible user comment //
+				if (strstr($found['content'],'<?php') === FALSE){
+					//no <?php is used -> only php code need to be used.
+					$phpcode="ob_start(); ".$found['content'] . "\n \$hana_final_output = ob_get_contents(); ob_end_clean(); "; 
+				}else{
+					$phpcode="ob_start(); ?>".$found['content'] . "\n<?php \$hana_final_output = ob_get_contents(); ob_end_clean(); "; 
+				}
+				eval($phpcode); //can be dangerous
+				$output=$hana_final_output;
+			}else{
+				$output=$found['content'];			
+			}
+		}
+		return $output;
+	
 	}
 	
 	function hana_code_callback($arg) {
@@ -96,36 +155,13 @@ class hana_code_insert
 		$attr_array=$this->parse_attributes($fixed);
 	
 		
-		
-		$key_list = array_keys($attr_array);
+		//$key_list = array_keys($attr_array['name']);
 		
 		if (! array_key_exists('name',$attr_array))	{
 			return '<div style="color:#f00;font-weight:bold;">['.$this->tag_name.'] "name" attribute is mandatory. It must match one of your code items that you defined in the Hana Code Insert Settings</div>';	 	
 		}
 		
-		$total=count($this->user_data);
-
-		$found=null;
-		for ($i=0;$i<$total ; $i++){
-			$cur = $this->user_data[$i];	
-			if ($cur['name'] == $attr_array['name']){
-					$found=$cur;
-					break;	
-			}
-		}
-
-		
-		$output='';
-		if ($found){
-			if ($found['php'] == '1' && $this->settings['enable_php'] =='yes' ){
-				// need to insert that \n because of the possible use comment //
-				$phpcode="ob_start(); ".$found['content'] . "\n \$hana_final_output = ob_get_contents(); ob_end_clean(); "; 
-				eval($phpcode); //can be dangerous
-				$output=$hana_final_output;
-			}else{
-				$output=$found['content'];			
-			}
-		}
+		$output = $this->hana_code_find($attr_array['name']);
 		
 		if ($output== '' && $cur['php'] != '1' ){
 			$output= "<div style='color:#f00;font-weight:bold;'>[ ".$this->tag_name." ] '". $attr_array['name']."' is not found </div>";
@@ -138,8 +174,24 @@ class hana_code_insert
 	    
     }
 	
-
-    
+	function hana_code_callback_custom($arg) {
+		$this->load_user_data();
+		$key = trim($arg[1]);
+		if ($key == '')	{
+			return '<div style="color:#f00;font-weight:bold;">['.$this->tag_name.'] entry name is missing. It must match one of your code items that you defined in the Hana Code Insert Settings</div>';	 	
+		}
+		$output = $this->hana_code_find($key);
+		
+		if ($output== '' && $cur['php'] != '1' ){
+			//10/4/2009 : let's just ignore the error message for now.
+			//$output= "<div style='color:#f00;font-weight:bold;'>[ ".$this->tag_name." ] '$key' is not found. You may want to check your custom shorcode format settings (
+			//	Short code Start:<code>". $this->get_shortcode_start_html(). "</code>, End:<code>". $this->get_shortcode_end_html()."</code> )</div>";
+			
+		}
+		return $output;				
+	
+	}
+	    
 	function hana_code_options_page() {
 		$this->load_user_data();
 
@@ -177,6 +229,7 @@ class hana_code_insert
 					
 	?>
 <div class="wrap">
+ 	<div id="icon-options-general" class="icon32"><br /></div>
 	<h2>Configuration for Hana Code Insert</h2>
 	<p>
 	Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article.
@@ -193,9 +246,16 @@ class hana_code_insert
 	<hr size='1'/>
 	<h3>Settings</h3>
 	<ul style='list-style-type:circle;margin-left:30px;'>
-	<li>Editor textarea:  Columns <input type='text' name='edit_col' size='2' value='<?php echo $this->settings['edit_col']?>'> Rows <input type='text' name='edit_row' value='<?php echo $this->settings['edit_row'];?>' size='2'></li>
-	<li><input type='checkbox' name='enable_php' <?php  if ($this->settings['enable_php'] == 'yes') echo 'checked'; ?> value='yes' /> Enable PHP Execution (If you enable this option, the code entry 
-can be evaluated as php codes. The output string will be embeded in the middle of your WP article. Don't need &lt;?php and ?&gt;)</li>
+	<li><strong>Editor textarea size:</strong> Columns <input type='text' name='edit_col' size='2' value='<?php echo $this->settings['edit_col']?>'> Rows <input type='text' name='edit_row' value='<?php echo $this->settings['edit_row'];?>' size='2'></li>
+    <li><strong>Custom Short Code format:</strong> 
+    Start indicators:<input type='text' name='shortcode_start' size='5' value='<?php echo $this->get_shortcode_start_html(); ?>'/> , 
+    End indicators:<input type='text' name='shortcode_end' size='5' value='<?php echo $this->get_shortcode_end_html(); ?>' /><br />
+    
+    If defined, custom short code format can be used instead of <code>[hana-code-insert name='Entry Name' /]</code>. For example, if you define <code>{{</code> for start, <code>}}</code> for end, you can use <code>{{Entry Name}}</code>. But beware, your new shortcode format may conflict with other plugins and cause one or more plugins to fail.
+    <strong>Note:</strong><code>^</code> and <code>\</code> characters are not allowed. And start and end indicators should not be used part of entry name.</code>
+	</li>    
+	<li><input type='checkbox' name='enable_php' <?php  if ($this->settings['enable_php'] == 'yes') echo 'checked'; ?> value='yes' /> <strong>Enable PHP Execution</strong><br />
+	If you enable this option, the code entry can be evaluated as php codes. The output string will be embeded in the middle of your WP article. Don't need <code>&lt;?php</code> and <code>?&gt;</code></li>
 	</ul>
 	
 	<p class="submit"><input type='submit' name='submit' value='Save Settings'></p>
@@ -248,7 +308,12 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 			print "
 				<input type='hidden' name='update_php_$i' value='".$cur['php']."'>";
 		print"
-			usage: <code>[".$this->tag_name." name='".$cur['name']."' /]</code>
+			usage: <code>[".$this->tag_name." name='".$cur['name']."' /]</code> ";
+
+		if ($this->settings['shortcode_start'] != '' ) 
+			print "or <code> ".$this->get_shortcode_start_html().$cur['name'].$this->get_shortcode_end_html()."</code>";
+		
+		print "
 			</td>
 		</tr>\n";
 	 } 
@@ -262,7 +327,7 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 <hr size='1'/>
  
 
-    <p>Thank you for using my plugin. - <a href='http://wwww.neox.net/'>HanaDaddy</a></p>
+    <p>Thank you for using my plugin. - <a href='http://wpmarketing.org/'>HanaDaddy</a></p>
 <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
 <input type="hidden" name="cmd" value="_donations">
 <input type="hidden" name="business" value="hanadaddy@gmail.com">
@@ -280,7 +345,7 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 </div>
 
 
-<script type="text/javascript" src="http://neox.net/plugin_news.php?id=<?php echo urlencode($this->tag_name); ?>"></script>
+<script type="text/javascript" src="http://wpmarketing.org/plugin_news.php?id=<?php echo urlencode($this->tag_name); ?>"></script>
 
 </div>
 
@@ -436,6 +501,29 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 		if ($row > 50) $row=50;
 		$this->settings['edit_row'] =$row; 
 		
+		$shortcode_start= trim($_POST['shortcode_start'] );
+		$shortcode_end= trim($_POST['shortcode_end'] );
+
+		// regex special characters \^[$.|?*+(){}
+
+		$shortcode_start=str_replace($this->coderemove,'',$shortcode_start);
+		$shortcode_end =str_replace($this->coderemove,'',$shortcode_end);
+		//echo "start :$shortcode_start<br />";
+		//echo "end :$shortcode_end";
+		$shortcode_start=str_replace($this->codesearch_arr,$this->codereplace_arr,$shortcode_start);
+		$shortcode_end=str_replace($this->codesearch_arr,$this->codereplace_arr,$shortcode_end);
+		
+		//echo "start :$shortcode_start<br />";
+		//echo "end :$shortcode_end";
+
+		if ($shortcode_start != '' && $shortcode_end != ''){
+			$this->settings['shortcode_start']=$shortcode_start;
+			$this->settings['shortcode_end']=$shortcode_end;			
+		}else{
+			$this->settings['shortcode_start']='';
+			$this->settings['shortcode_end']='';
+		}
+		
 		update_option('hanacode_settings',$this->settings);
 		$this->update_result="Saved Settings.";
 	}
@@ -530,22 +618,36 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 	   	$plugin_array['hanacodeinsert'] = $this->plugin_url . '/tinymce3/editor_plugin.js';
 	   	return $plugin_array;
 	}
+	
+	function admin_javascript(){
+		//show only when editing a post or page.
+		if (strpos($_SERVER['REQUEST_URI'], 'post.php') || strpos($_SERVER['REQUEST_URI'], 'post-new.php') || strpos($_SERVER['REQUEST_URI'], 'page-new.php') || strpos($_SERVER['REQUEST_URI'], 'page.php')) {
+		
+			//wp_enqueue_script only works  in => 'init'(for all), 'template_redirect'(for only public) , 'admin_print_scripts' for admin only
+			if (function_exists('wp_enqueue_script')) {
+				$jspath='/'. PLUGINDIR  . '/'. $this->plugin_folder.'/jqModal/jqModal.js';
+				wp_enqueue_script('jqmodal_hana', $jspath, array('jquery'));
+			}
+
+		}
+	}
 
 	function print_javascript () {
-	 
+
+ 
 ?>
    <!--  for popup dialog -->
+   
    <link href="<?php echo $this->plugin_url . '/jqModal/jqModal.css'; ?>" type="text/css" rel="stylesheet" />
-   <script type="text/javascript" src="<?php echo $this->plugin_url . '/jqModal/jqModal.js';?>" ></script>
 
    <script type="text/javascript">
    	jQuery(document).ready(function(){
 		// Add the buttons to the HTML view
-		jQuery("#ed_toolbar").append('<input type=\"button\" class=\"ed_button\" onclick=\"jQuery(\'#dialog\').jqmShow();\" title=\"Hana Code Insert\" value=\"Hana Code\" />');
+		jQuery("#ed_toolbar").append('<input type=\"button\" class=\"ed_button\" onclick=\"jQuery(\'#dialog_hanacode\').jqmShow();\" title=\"Hana Code Insert\" value=\"Hana Code\" />');
    	});
 
 	jQuery(document).ready(function () {
-		jQuery('#dialog').jqm();
+		jQuery('#dialog_hanacode').jqm();
 	});
 
 	function update_hanacodeinsert(){
@@ -566,13 +668,13 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 			}
 		}
 		
-		jQuery('#dialog').jqmHide();
+		jQuery('#dialog_hanacode').jqmHide();
 	}
 
 	
    	</script>
 
-	<div id="dialog" class='jqmWindow'  >
+	<div id="dialog_hanacode" class='jqmWindow'  >
 	<div style='width:100%;text-align:center'>
 	<h3>Hana Code Insert</h3>
 	<a href='options-general.php?page=hana-code-insert/hana-code-insert.php' >Settings page</a><br />
@@ -600,7 +702,7 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 	<?php endif; ?>
 	
 	
-		<input type='button' value='Cancel' onclick="jQuery('#dialog').jqmHide();" >
+		<input type='button' value='Cancel' onclick="jQuery('#dialog_hanacode').jqmHide();" >
 	
 	</div>
 	
@@ -617,8 +719,10 @@ can be evaluated as php codes. The output string will be embeded in the middle o
 
 //initialize hana code insert object
 $hana_code = new hana_code_insert();
+require_once("wpmarketing_feed.php");
 
  
+
 
 
 
