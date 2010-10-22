@@ -18,7 +18,7 @@
 				title : 'hanacodeinsert.hcinsert',
 				image : url + '/../hanacode.png',
 				onclick : function() {
-					jQuery('#dialog').jqmShow();
+					jQuery('#dialog_hanacode').jqmShow();
 				}
 			}); 
 		},
