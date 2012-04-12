@@ -3,7 +3,7 @@
 Plugin Name: Hana Code Insert
 Plugin URI: http://wpmarketing.org/plugins/hana-code-insert/
 Description: Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
-Version: 2.2
+Version: 2.3
 Author: HanaDaddy
 Author URI: http://neox.net
 */
@@ -228,6 +228,32 @@ class hana_code_insert
 			print '<div id="message" class="error fade"><p>' . $this->error_result . '</p></div>';
 					
 	?>
+<style>
+div.division {
+	margin-top:10px;
+	padding:5px 10px 5px 10px;
+	border: 2px solid black;
+	-moz-border-radius: 10px;
+	border-radius: 10px;
+}
+h3 {
+	font-size:1.5em;
+}
+
+</style>
+<script LANGUAGE="JavaScript">
+<!--
+// Nannette Thacker http://www.shiningstar.net
+function confirmSubmit()
+{
+	var agree=confirm("Are you sure you wish to remove all entries?");
+	if (agree)
+		return true ;
+	else
+		return false ;
+}
+// -->
+</script>
 <div class="wrap">
  	<div id="icon-options-general" class="icon32"><br /></div>
 	<h2>Configuration for Hana Code Insert</h2>
@@ -241,9 +267,9 @@ class hana_code_insert
    
  	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name' />
-	If something goes wrong and you want to start fresh, click this button. It will erase all the entries. <span class="submit"><input name="submit" value="Remove All" type="submit" /></span>
+	If something goes wrong and you want to start fresh, click this button. It will erase all the entries. <span class="submit"><input name="submit" value="Remove All" type="submit" onClick="return confirmSubmit()"/></span>
 
-	<hr size='1'/>
+<div class='division'>
 	<h3>Settings</h3>
 	<ul style='list-style-type:circle;margin-left:30px;'>
 	<li><strong>Editor textarea size:</strong> Columns <input type='text' name='edit_col' size='2' value='<?php echo $this->settings['edit_col']?>'> Rows <input type='text' name='edit_row' value='<?php echo $this->settings['edit_row'];?>' size='2'></li>
@@ -261,7 +287,9 @@ class hana_code_insert
 	<p class="submit"><input type='submit' name='submit' value='Save Settings'></p>
 	
 	</form>
-	<hr size='1'/>
+</div>
+
+<div class='division'>
 	<h3>New Entry</h3>
 	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name'>
@@ -281,7 +309,10 @@ class hana_code_insert
 	<p class="submit"><input name="submit" value="Create New Entry &raquo;" type="submit"></p>
 	</fieldset>
 	</form>
-	<hr size='1'/>
+</div>
+
+<div class='division'>
+	 
 	<h3>Edit Existing Entries</h3>
 	<form action="" method="post">
 	<input type='hidden' value='<?php print $this->tag_name; ?>' name='form_name'>
@@ -324,8 +355,8 @@ class hana_code_insert
 	<input type='submit' name='submit' value='Delete &raquo;'></p>
 	</fieldset>
 	</form>
-<hr size='1'/>
  
+</div>
 
     <p>Thank you for using my plugin. - <a href='http://wpmarketing.org/'>HanaDaddy</a></p>
 <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
@@ -347,7 +378,7 @@ class hana_code_insert
 
 <script type="text/javascript" src="http://wpmarketing.org/plugin_news.php?id=<?php echo urlencode($this->tag_name); ?>"></script>
 
-</div>
+ 
 
 <?php
 
@@ -641,10 +672,21 @@ class hana_code_insert
    <link href="<?php echo $this->plugin_url . '/jqModal/jqModal.css'; ?>" type="text/css" rel="stylesheet" />
 
    <script type="text/javascript">
-   	jQuery(document).ready(function(){
+    function click_hana_code_btn(){
+    	jQuery('#dialog_hanacode').jqmShow();
+    }
+	
+  	jQuery(document).ready(function(){
 		// Add the buttons to the HTML view
-		jQuery("#ed_toolbar").append('<input type=\"button\" class=\"ed_button\" onclick=\"jQuery(\'#dialog_hanacode\').jqmShow();\" title=\"Hana Code Insert\" value=\"Hana Code\" />');
-   	});
+	    if (QTags && typeof QTags.addButton == 'function' ) { // WP 3.3+
+			QTags.addButton('hana_code_btn','Hana Code',click_hana_code_btn);
+			
+	    }else{ // Previous WP versions
+			jQuery("#ed_toolbar").append('<input type=\"button\" class=\"ed_button\" onclick=\"jQuery(\'#dialog_hanacode\').jqmShow();\" title=\"Hana Code Insert\" value=\"Hana Code\" />');
+		}
+  	});
+	    	
+   	 
 
 	jQuery(document).ready(function () {
 		jQuery('#dialog_hanacode').jqm();

@@ -3,8 +3,8 @@ Contributors: HanaDaddy
 Donate link: http://www.neox.net/
 Tags: AdSense,Paypal, PHP, Insert, adding code,embed code,code
 Requires at least: 2.0
-Tested up to: 2.8.4
-Stable tag: 2.2
+Tested up to: 3.3.1
+Stable tag: 2.3
 
 Easily insert any complicated HTML and JAVASCRIPT code or even custom PHP output in your Wordpress article. Useful for adding AdSense and Paypal donation code in the middle of the WP article.
 
@@ -36,6 +36,8 @@ Also from version 2.2 , you can use custom Shortcode prefix and post fix.  So if
 Thank you for using my plugin. -  [HanaDaddy](http://www.neox.net/)
 
 Have Questions? [Hana Code Insert Plugin Forum](http://wpmarketing.org/forum/forum/wp-plugin-hana-code-insert)
+
+*v2.3 (04/11/2012) : Fixing bugs with newer Wordpress version. Fixed "Missing quicktag button in the HTML editor" problem with WordPress v3.3+
 
 *v2.2 (10/04/2009) : Some modification on PHP evaluation that you can use `<?php` and `?>` within the entry content for PHP evaluation. Also extra feature for custom short code is added. You can define your own custom short code prefix and post fix. So you don't have to use `[hana-code-insert]` shortcode any more. 
 
